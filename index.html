@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PoluTracker Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --panel: #141414;
+      --panel2: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e8e8e8;
+      --muted: #888;
+      --accent: #00e5ff;
+      --accent2: #ff6b35;
+      --ok: #69db7c;
+      --err: #ff6b6b;
+      --warn: #ffd43b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--panel);
+    }
+
+    .topbar h1 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+
+    .topbar span {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+    }
+
+    .panel h2 {
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--accent);
+      margin-bottom: 14px;
+      letter-spacing: 0.05em;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    .btn {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      background: #1e1e1e;
+      color: var(--text);
+      border-radius: 4px;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .btn:hover { border-color: var(--accent); background: #222; }
+    .btn.primary { border-color: var(--accent); color: var(--accent); }
+    .btn.danger { border-color: var(--err); color: var(--err); }
+    .btn.warn { border-color: var(--warn); color: var(--warn); }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 12px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+    .field input, .field select {
+      background: #0d0d0d;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 10px;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      transition: border-color 0.15s;
+    }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-grid .full { grid-column: 1 / -1; }
+
+    .status { font-size: 12px; font-family: 'IBM Plex Mono', monospace; margin-top: 10px; color: var(--muted); }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--err); }
+
+    .table-wrap { overflow-x: auto; margin-top: 14px; border: 1px solid var(--border); border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; background: #111; }
+    td { padding: 9px 12px; border-bottom: 1px solid #1e1e1e; color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #181818; }
+
+    .search-row { display: flex; gap: 10px; align-items: center; }
+    .search-row input { flex: 1; }
+
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .tab {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 8px 14px;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .tag {
+      display: inline-block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .tag.accent { border-color: var(--accent); color: var(--accent); }
+    .tag.warn { border-color: var(--warn); color: var(--warn); }
+
+    .inline-row { display: flex; gap: 10px; align-items: flex-end; }
+    .inline-row .field { flex: 1; }
+
+    .star { font-size: 22px; cursor: pointer; color: var(--border); transition: color 0.1s; }
+    .star.active { color: var(--warn); }
+
+    @media (max-width: 700px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>POLUTRACKER</h1>
+  <span>// air quality &amp; mortality database</span>
+</div>
+
+<main class="page">
+
+  <!-- QUERIES -->
+  <div class="panel">
+    <div class="section-label">Queries</div>
+    <div class="tabs">
+      <div class="tab active" data-tab="preset">Preset Queries</div>
+      <div class="tab" data-tab="search">Keyword Search <span class="tag accent">SEARCH</span></div>
+      <div class="tab" data-tab="transaction">State Report <span class="tag warn">TXN</span></div>
+      <div class="tab" data-tab="procedure">Pollution Summary <span class="tag">PROC</span></div>
+    </div>
+
+    <div class="tab-content active" id="tab-preset">
+      <div class="btn-group">
+        <button class="btn" data-query="q1">Q1 — Monitors by State</button>
+        <button class="btn" data-query="q2">Q2 — Deaths by County</button>
+        <button class="btn" data-query="q3">Q3 — Above-Avg SPM Locations</button>
+        <button class="btn" data-query="users">Recent Users</button>
+      </div>
+      <p id="preset-description" class="status" style="margin-top:12px;">Click a query to load results.</p>
+      <div class="table-wrap">
+        <table id="preset-table"><thead></thead><tbody></tbody></table>
+      </div>
+      <p id="preset-status" class="status"></p>
+    </div>
+
+    <div class="tab-content" id="tab-search">
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Search counties and cities by name.</p>
+      <div class="search-row">
+        <div class="field" style="flex:1">
+          <label>Search term</label>
+          <input id="search-input" type="text" placeholder="e.g. Cook, Springfield, Los Angeles...">
+        </div>
+        <button class="btn primary" id="search-btn" style="margin-top:20px;">Search</button>
+      </div>
+      <p id="search-status" class="status" style="margin-top:10px;"></p>
+      <div class="table-wrap">
+        <table id="search-table"><thead></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-transaction">
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Runs a transaction with <strong style="color:var(--warn)">REPEATABLE READ</strong> isolation — returns monitor counts and death breakdown for a state.</p>
+      <div class="inline-row">
+        <div class="field">
+          <label>State Code </label>
+          <input id="report-state" type="text" maxlength="2" placeholder="e.g. 01, IL, TX">
+        </div>
+        <button class="btn warn" id="report-btn">Run Transaction</button>
+      </div>
+      <p id="report-status" class="status" style="margin-top:10px;"></p>
+      <div id="report-results"></div>
+    </div>
+
+    <div class="tab-content" id="tab-procedure">
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Calls stored procedure <code style="color:var(--accent)">GetStatePollutionSummary(state_code)</code> — returns monitor totals and death stats.</p>
+      <div class="inline-row">
+        <div class="field">
+          <label>State Code</label>
+          <input id="proc-state" type="text" maxlength="2" placeholder="e.g. 01, IL, TX">
+        </div>
+        <button class="btn primary" id="proc-btn">Call Procedure</button>
+      </div>
+      <p id="proc-status" class="status" style="margin-top:10px;"></p>
+      <div id="proc-results"></div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS -->
+  <div class="panel">
+    <div class="section-label">Analytics</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      
+      <!-- Deaths by Race -->
+      <div>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">Death counts by race from CDC mortality records.</p>
+        <button class="btn primary" id="race-btn">Load Deaths Chart</button>
+        <p id="race-status" class="status" style="margin-top:10px;"></p>
+        <div style="margin-top:16px; position:relative; height:300px;">
+          <canvas id="race-chart" role="img" aria-label="Bar chart of death counts by race"></canvas>
+        </div>
+      </div>
+      
+      <!-- Pollutants by Count -->
+      <div>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">Monitor counts broken down by pollutant type.</p>
+        <button class="btn primary" id="pollutant-btn">Load Pollutants Chart</button>
+        <p id="pollutant-status" class="status" style="margin-top:10px;"></p>
+        <div style="margin-top:16px; position:relative; height:300px;">
+          <canvas id="pollutant-chart" role="img" aria-label="Bar chart of monitor counts by pollutant"></canvas>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- COUNTY RATINGS -->
+  <div class="panel">
+    <div class="section-label">County Ratings</div>
+    <div class="tabs">
+      <div class="tab active" data-tab="rate">Rate a County</div>
+      <div class="tab" data-tab="heatmap">Ratings Heatmap</div>
+      <div class="tab" data-tab="ratings-table">Ratings by State</div>
+    </div>
+
+    <!-- Rate a County -->
+    <div class="tab-content active" id="tab-rate">
+      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">Rate the overall quality of a county based on air quality and environment.</p>
+      <div class="form-grid">
+        <div class="field">
+          <label>Your User ID</label>
+          <input id="r-uid" type="number" placeholder="Enter your user_id">
+        </div>
+        <div class="field">
+          <label>State Code</label>
+          <div class="search-row">
+            <input id="r-state" type="text" maxlength="2" placeholder="e.g. IL">
+            <button class="btn" id="load-counties-btn">Load</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>County</label>
+          <select id="r-county">
+            <option value="">Enter state code first</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Quality Rating</label>
+          <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
+            <span class="star active" data-star="1">★</span>
+            <span class="star" data-star="2">★</span>
+            <span class="star" data-star="3">★</span>
+            <span class="star" data-star="4">★</span>
+            <span class="star" data-star="5">★</span>
+            <span id="star-label" style="font-size:12px; color:var(--muted); margin-left:4px;">1 / 5</span>
+          </div>
+        </div>
+        <div class="full">
+          <button class="btn primary" id="submit-rating-btn">Submit Rating</button>
+          <p id="rating-status" class="status">Waiting for input.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Heatmap -->
+    <div class="tab-content" id="tab-heatmap">
+      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">US heatmap showing average county quality ratings by state.</p>
+      <button class="btn primary" id="load-heatmap-btn">Load Heatmap</button>
+      <p id="heatmap-status" class="status" style="margin-top:10px;"></p>
+      <div style="display:flex; align-items:center; gap:6px; margin-top:12px; font-size:11px; color:var(--muted);">
+        <span>low</span>
+        <span style="display:inline-flex; gap:2px;">
+          <span style="width:14px;height:14px;background:#501313;border-radius:2px;"></span>
+          <span style="width:14px;height:14px;background:#e24b4a;border-radius:2px;"></span>
+          <span style="width:14px;height:14px;background:#ffd43b;border-radius:2px;"></span>
+          <span style="width:14px;height:14px;background:#97c459;border-radius:2px;"></span>
+          <span style="width:14px;height:14px;background:#3b6d11;border-radius:2px;"></span>
+        </span>
+        <span>high rating</span>
+      </div>
+      <div id="heatmap-container" style="margin-top:12px; width:100%;"></div>
+    </div>
+
+    <!-- Ratings Table -->
+    <div class="tab-content" id="tab-ratings-table">
+      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">View county ratings for a specific state.</p>
+      <div class="inline-row">
+        <div class="field">
+          <label>State Code</label>
+          <input id="rt-state" type="text" maxlength="2" placeholder="e.g. IL">
+        </div>
+        <button class="btn primary" id="load-ratings-btn">Load Ratings</button>
+      </div>
+      <p id="rt-status" class="status" style="margin-top:10px;"></p>
+      <div class="table-wrap">
+        <table id="ratings-table"><thead></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CRUD -->
+  <div class="grid-2">
+
+    <div class="panel">
+      <div class="section-label">CRUD — Create</div>
+      <h2>Create Account</h2>
+      <div class="form-grid">
+        <div class="field"><label>First Name</label><input id="c-first" type="text"></div>
+        <div class="field"><label>Last Name</label><input id="c-last" type="text"></div>
+        <div class="field">
+          <label>Age Group</label>
+          <select id="c-age">
+            <option value="">Select</option>
+            <option>18-24</option><option>25-34</option><option>35-44</option>
+            <option>45-54</option><option>55-64</option><option>65+</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Race</label>
+          <select id="c-race">
+            <option value="">Select</option>
+            <option>African American</option><option>American Indian</option>
+            <option>Asian</option><option>White</option><option>Other</option>
+            <option>Prefer not to say</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Hispanic Ethnicity</label>
+          <select id="c-eth">
+            <option value="">Select</option>
+            <option>Hispanic</option><option>Not Hispanic</option>
+            <option>Other</option><option>Prefer not to say</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Sex</label>
+          <select id="c-sex">
+            <option value="">Select</option>
+            <option>Female</option><option>Male</option>
+            <option>Other</option><option>Prefer not to say</option>
+          </select>
+        </div>
+        <div class="full">
+          <button class="btn primary" id="create-btn">Create Account</button>
+          <p id="create-status" class="status">Waiting for input.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-label">CRUD — Update / Delete</div>
+      <h2>Edit or Remove User</h2>
+      <div class="field" style="margin-bottom:12px;">
+        <label>User ID</label>
+        <div class="search-row">
+          <input id="ud-id" type="number" placeholder="Enter user_id">
+          <button class="btn" id="load-user-btn">Load</button>
+        </div>
+      </div>
+      <div id="ud-fields" style="display:none;">
+        <div class="form-grid">
+          <div class="field"><label>First Name</label><input id="u-first" type="text"></div>
+          <div class="field"><label>Last Name</label><input id="u-last" type="text"></div>
+          <div class="field">
+            <label>Age Group</label>
+            <select id="u-age">
+              <option value="">Select</option>
+              <option>18-24</option><option>25-34</option><option>35-44</option>
+              <option>45-54</option><option>55-64</option><option>65+</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Race</label>
+            <select id="u-race">
+              <option value="">Select</option>
+              <option>African American</option><option>American Indian</option>
+              <option>Asian</option><option>White</option><option>Other</option>
+              <option>Prefer not to say</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Hispanic Ethnicity</label>
+            <select id="u-eth">
+              <option value="">Select</option>
+              <option>Hispanic</option><option>Not Hispanic</option>
+              <option>Other</option><option>Prefer not to say</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Sex</label>
+            <select id="u-sex">
+              <option value="">Select</option>
+              <option>Female</option><option>Male</option>
+              <option>Other</option><option>Prefer not to say</option>
+            </select>
+          </div>
+          <div class="full btn-group">
+            <button class="btn warn" id="update-btn">Update User</button>
+            <button class="btn danger" id="delete-btn">Delete User</button>
+          </div>
+        </div>
+      </div>
+      <p id="ud-status" class="status">Enter a user ID to load.</p>
+    </div>
+  </div>
+
+  <!-- Users Table + Audit Log -->
+  <div class="grid-2">
+    <div class="panel">
+      <div class="section-label">Recent Users</div>
+      <h2>USERS TABLE</h2>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">15 most recently created accounts.</p>
+      <button class="btn" id="refresh-users-btn">Refresh</button>
+      <div class="table-wrap">
+        <table id="users-table"><thead></thead><tbody></tbody></table>
+      </div>
+      <p id="users-status" class="status"></p>
+    </div>
+
+    <div class="panel">
+      <div class="section-label">Trigger Log</div>
+      <h2>USER AUDIT <span class="tag accent">TRIGGER</span></h2>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">Auto-logged by <code>after_user_insert</code> trigger on every new account.</p>
+      <button class="btn" id="refresh-audit-btn">Refresh Audit Log</button>
+      <div class="table-wrap">
+        <table id="audit-table"><thead></thead><tbody></tbody></table>
+      </div>
+      <p id="audit-status" class="status"></p>
+    </div>
+  </div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+<script>
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const group = tab.closest('.panel');
+      group.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      group.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function renderTable(tableId, rows) {
+    const table = document.getElementById(tableId);
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+    if (!rows || !rows.length) {
+      tbody.innerHTML = '<tr><td style="color:var(--muted)">No rows returned.</td></tr>';
+      return;
+    }
+    const cols = Object.keys(rows[0]);
+    const hr = document.createElement('tr');
+    cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; hr.appendChild(th); });
+    thead.appendChild(hr);
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      cols.forEach(c => { const td = document.createElement('td'); td.textContent = row[c] ?? ''; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function setStatus(id, msg, type = '') {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'status ' + type;
+  }
+
+  // ── Preset Queries ────────────────────────────────────────────────────────
+  document.querySelectorAll('[data-query]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      setStatus('preset-status', 'Loading...', '');
+      const res = await fetch(`/api/queries/${btn.dataset.query}`);
+      const data = await res.json();
+      document.getElementById('preset-description').textContent = data.description;
+      renderTable('preset-table', data.rows);
+      setStatus('preset-status', `Loaded ${data.rows.length} row(s).`, 'ok');
+    });
+  });
+
+  // ── Keyword Search ────────────────────────────────────────────────────────
+  document.getElementById('search-btn').addEventListener('click', async () => {
+    const q = document.getElementById('search-input').value.trim();
+    if (!q) { setStatus('search-status', 'Please enter a search term.', 'err'); return; }
+    setStatus('search-status', 'Searching...', '');
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    if (data.error) { setStatus('search-status', data.error, 'err'); return; }
+    renderTable('search-table', data.results);
+    setStatus('search-status', `Found ${data.results.length} result(s) for "${q}".`, 'ok');
+  });
+
+  document.getElementById('search-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('search-btn').click();
+  });
+
+    // ── State Report with Transaction ──────────────────────────────────────────
+  document.getElementById('report-btn').addEventListener('click', async () => {
+    const sc = document.getElementById('report-state').value.trim().toUpperCase();
+    if (!sc) { setStatus('report-status', 'Enter a state code.', 'err'); return; }
+    
+    setStatus('report-status', 'Loading report...', '');
+    const res = await fetch(`/api/transaction/state-report?state_code=${sc}`);
+    const data = await res.json();
+    
+    if (data.error) { setStatus('report-status', data.error, 'err'); return; }
+    
+    setStatus('report-status', `Report loaded for ${sc}.`, 'ok');
+    
+    const container = document.getElementById('report-results');
+    container.innerHTML = '';
+    
+    // Create grid layout
+    const grid = document.createElement('div');
+    grid.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 24px;
+      margin-top: 20px;
+    `;
+    container.appendChild(grid);
+    
+    // Monitor Summary Card
+    if (data.monitor_summary && data.monitor_summary.length > 0) {
+      const monCard = document.createElement('div');
+      monCard.style.cssText = `
+        border: 1px solid var(--border, #333);
+        border-radius: 8px;
+        padding: 16px;
+        background: var(--bg-secondary, #1a1a1a);
+      `;
+      
+      const monTitle = document.createElement('h3');
+      monTitle.style.cssText = `
+        margin: 0 0 16px 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--accent, #0ea5e9);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      `;
+      monTitle.textContent = 'Monitor Summary';
+      monCard.appendChild(monTitle);
+      
+      const monData = data.monitor_summary[0];
+      const monStats = [
+        { label: 'State', value: monData.state_name },
+        { label: 'Total Monitors', value: monData.total_monitors, highlight: true }
+      ];
+      
+      monStats.forEach((stat, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText = `
+          display: flex;
+          justify-content: space-between;
+          padding: 10px 0;
+          ${idx > 0 ? 'border-top: 1px solid var(--border, #333);' : ''}
+        `;
+        
+        const label = document.createElement('span');
+        label.style.cssText = `
+          font-size: 12px;
+          color: var(--muted, #888);
+          font-weight: 500;
+        `;
+        label.textContent = stat.label;
+        
+        const value = document.createElement('span');
+        value.style.cssText = `
+          font-size: 13px;
+          font-weight: ${stat.highlight ? '600' : '500'};
+          color: ${stat.highlight ? 'var(--accent, #0ea5e9)' : 'var(--text, #fff)'};
+          font-family: 'IBM Plex Mono', monospace;
+        `;
+        value.textContent = stat.value;
+        
+        row.appendChild(label);
+        row.appendChild(value);
+        monCard.appendChild(row);
+      });
+      
+      grid.appendChild(monCard);
+    }
+    
+    // Death Summary Card with Pie Chart
+    if (data.death_summary && data.death_summary.length > 0) {
+      const deathCard = document.createElement('div');
+      deathCard.style.cssText = `
+        border: 1px solid var(--border, #333);
+        border-radius: 8px;
+        padding: 16px;
+        background: var(--bg-secondary, #1a1a1a);
+      `;
+      
+      const deathTitle = document.createElement('h3');
+      deathTitle.style.cssText = `
+        margin: 0 0 16px 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--accent, #0ea5e9);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      `;
+      deathTitle.textContent = 'Death Summary by Race';
+      deathCard.appendChild(deathTitle);
+      
+      // Create canvas for pie chart
+      const canvasContainer = document.createElement('div');
+      canvasContainer.style.cssText = `
+        position: relative;
+        height: 300px;
+        margin-bottom: 16px;
+      `;
+      
+      const canvas = document.createElement('canvas');
+      canvas.id = `death-pie-${Date.now()}`;
+      canvasContainer.appendChild(canvas);
+      deathCard.appendChild(canvasContainer);
+      
+      grid.appendChild(deathCard);
+      
+      // Wait for DOM to be ready, then create chart
+      setTimeout(() => {
+        const ctx = canvas.getContext('2d');
+        const races = data.death_summary.map(d => d.race || 'Unknown');
+        const counts = data.death_summary.map(d => d.death_count);
+        
+        // Color palette
+        const colors = [
+          '#0ea5e9', // cyan
+          '#f43f5e', // rose
+          '#8b5cf6', // violet
+          '#ec4899', // pink
+          '#06b6d4', // cyan-darker
+          '#14b8a6', // teal
+          '#f59e0b', // amber
+          '#10b981', // emerald
+        ];
+        
+        new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: races,
+            datasets: [{
+              data: counts,
+              backgroundColor: colors.slice(0, races.length),
+              borderColor: '#141414',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  color: '#e8e8e8',
+                  font: { size: 12, weight: '500', family: 'IBM Plex Sans' },
+                  padding: 16,
+                  usePointStyle: true,
+                  pointStyle: 'circle'
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.parsed || 0;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = ((value / total) * 100).toFixed(1);
+                    return `${label}: ${value} (${percentage}%)`;
+                  }
+                },
+                backgroundColor: 'rgba(20, 20, 20, 0.95)',
+                titleColor: '#00e5ff',
+                bodyColor: '#e8e8e8',
+                borderColor: '#00e5ff',
+                borderWidth: 1,
+                padding: 10,
+                titleFont: { size: 13, weight: 'bold' },
+                bodyFont: { size: 12 }
+              }
+            }
+          }
+        });
+      }, 0);
+    }
+  });
+
+  // ── Stored Procedure ──────────────────────────────────────────────────────
+  document.getElementById('proc-btn').addEventListener('click', async () => {
+    const sc = document.getElementById('proc-state').value.trim().toUpperCase();
+    if (!sc) { setStatus('proc-status', 'Enter a state code.', 'err'); return; }
+    
+    setStatus('proc-status', 'Calling procedure...', '');
+    const res = await fetch(`/api/procedure/state-summary?state_code=${sc}`);
+    const data = await res.json();
+    
+    if (data.error) { setStatus('proc-status', data.error, 'err'); return; }
+    
+    setStatus('proc-status', `Data loaded for ${sc}.`, 'ok');
+    
+    const container = document.getElementById('proc-results');
+    container.innerHTML = '';
+    
+    const monitoring = data.data.find(row => row.record_type === 'MONITORING');
+    const deaths = data.data.find(row => row.record_type === 'DEATHS');
+    
+    // Create card-based layout
+    const summary = document.createElement('div');
+    summary.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-top: 14px;
+    `;
+    container.appendChild(summary);
+    
+    // Monitoring Card
+    if (monitoring) {
+      const card = createCard('Air Quality Monitoring', [
+        { label: 'State', value: monitoring.state_name },
+        { label: 'Total Monitors', value: monitoring.total_monitors, highlight: true },
+        { label: 'Monitored Locations', value: monitoring.total_locations, highlight: true },
+        { label: 'Most Monitored Pollutant', value: monitoring.mode_pollutant || 'N/A' }
+      ]);
+      summary.appendChild(card);
+    }
+    
+    // Death Statistics Card
+    if (deaths) {
+      const card = createCard('Death Statistics', [
+        { label: 'State', value: deaths.state_name },
+        { label: 'Total Deaths', value: deaths.total_deaths, highlight: true },
+        { label: 'Most Common Gender', value: deaths.mode_gender || 'N/A' },
+        { label: 'Most Common Race', value: deaths.mode_race || 'N/A' }
+      ]);
+      summary.appendChild(card);
+    }
+  });
+
+  // Helper function to create styled cards
+  function createCard(title, fields) {
+    const card = document.createElement('div');
+    card.style.cssText = `
+      border: 1px solid var(--border, #333);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--bg-secondary, #1a1a1a);
+    `;
+    
+    const titleEl = document.createElement('h3');
+    titleEl.style.cssText = `
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent, #0ea5e9);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    `;
+    titleEl.textContent = title;
+    card.appendChild(titleEl);
+    
+    fields.forEach((field, idx) => {
+      const row = document.createElement('div');
+      row.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        ${idx > 0 ? 'border-top: 1px solid var(--border, #333);' : ''}
+      `;
+      
+      const label = document.createElement('span');
+      label.style.cssText = `
+        font-size: 12px;
+        color: var(--muted, #888);
+        font-weight: 500;
+      `;
+      label.textContent = field.label;
+      
+      const value = document.createElement('span');
+      value.style.cssText = `
+        font-size: 13px;
+        font-weight: ${field.highlight ? '600' : '500'};
+        color: ${field.highlight ? 'var(--accent, #0ea5e9)' : 'var(--text, #fff)'};
+        font-family: 'IBM Plex Mono', monospace;
+      `;
+      value.textContent = field.value;
+      
+      row.appendChild(label);
+      row.appendChild(value);
+      card.appendChild(row);
+    });
+    
+    return card;
+  }
+
+  // ── Deaths by Race Chart ──────────────────────────────────────────────────
+  let raceChartInstance = null;
+  document.getElementById('race-btn').addEventListener('click', async () => {
+    setStatus('race-status', 'Loading...', '');
+    const res = await fetch('/api/deaths/by-race');
+    const data = await res.json();
+    if (!data.rows || !data.rows.length) { setStatus('race-status', 'No data found.', 'err'); return; }
+    setStatus('race-status', `Loaded ${data.rows.length} race categories.`, 'ok');
+    const labels = data.rows.map(r => r.race);
+    const values = data.rows.map(r => r.death_count);
+    if (raceChartInstance) raceChartInstance.destroy();
+    const ctx = document.getElementById('race-chart').getContext('2d');
+    raceChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Death Count', data: values, backgroundColor: '#00e5ff44', borderColor: '#00e5ff', borderWidth: 1 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#e8e8e8', font: { family: 'IBM Plex Mono' } } } },
+        scales: {
+          x: { ticks: { color: '#888' }, grid: { color: '#2a2a2a' } },
+          y: { ticks: { color: '#888' }, grid: { color: '#2a2a2a' } }
+        }
+      }
+    });
+  });
+
+  // ── Pollutants by Count Chart ────────────────────────────────────────────
+  let pollutantChartInstance = null;
+  document.getElementById('pollutant-btn').addEventListener('click', async () => {
+    setStatus('pollutant-status', 'Loading...', '');
+    const res = await fetch('/api/pollutants/by-count');
+    const data = await res.json();
+    if (!data.rows || !data.rows.length) { setStatus('pollutant-status', 'No data found.', 'err'); return; }
+    setStatus('pollutant-status', `Loaded ${data.rows.length} pollutant types.`, 'ok');
+    const labels = data.rows.map(r => r.pollutant_name);
+    const values = data.rows.map(r => r.monitor_count);
+    if (pollutantChartInstance) pollutantChartInstance.destroy();
+    const ctx = document.getElementById('pollutant-chart').getContext('2d');
+    pollutantChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Monitor Count', data: values, backgroundColor: '#ff6b3544', borderColor: '#ff6b35', borderWidth: 1 }] },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#e8e8e8', font: { family: 'IBM Plex Mono' } } } },
+        scales: {
+          x: { ticks: { color: '#888' }, grid: { color: '#2a2a2a' } },
+          y: { ticks: { color: '#888' }, grid: { color: '#2a2a2a' } }
+        }
+      }
+    });
+  });
+
+  // ── Star Rating ───────────────────────────────────────────────────────────
+  let selectedRating = 1;
+  document.querySelectorAll('.star').forEach(star => {
+    star.addEventListener('click', () => {
+      selectedRating = parseInt(star.dataset.star);
+      document.querySelectorAll('.star').forEach((s, i) => {
+        s.classList.toggle('active', i < selectedRating);
+      });
+      document.getElementById('star-label').textContent = selectedRating + ' / 5';
+    });
+  });
+
+  // ── Load Counties ─────────────────────────────────────────────────────────
+  document.getElementById('load-counties-btn').addEventListener('click', async () => {
+    const sc = document.getElementById('r-state').value.trim().toUpperCase();
+    if (!sc) return;
+    const res = await fetch(`/api/counties/by-state?state_code=${sc}`);
+    const data = await res.json();
+    const sel = document.getElementById('r-county');
+    if (!data.rows || !data.rows.length) {
+      sel.innerHTML = '<option value="">No counties found</option>';
+      return;
+    }
+    sel.innerHTML = data.rows.map(r => `<option value="${r.county_code}">${r.county_name}</option>`).join('');
+  });
+
+  // ── Submit Rating ─────────────────────────────────────────────────────────
+  document.getElementById('submit-rating-btn').addEventListener('click', async () => {
+    const user_id = document.getElementById('r-uid').value;
+    const state_code = document.getElementById('r-state').value.trim().toUpperCase();
+    const county_code = document.getElementById('r-county').value;
+    if (!user_id || !state_code || !county_code) {
+      setStatus('rating-status', 'Please fill in all fields.', 'err'); return;
+    }
+    const res = await fetch('/api/ratings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, state_code, county_code, rating: selectedRating })
+    });
+    const data = await res.json();
+    if (data.error) { setStatus('rating-status', data.error, 'err'); return; }
+    setStatus('rating-status', `Rating submitted! ${state_code}-${county_code}: ${selectedRating}/5`, 'ok');
+  });
+
+  // ── Heatmap ───────────────────────────────────────────────────────────────
+  const stateCodeToName = {
+    '01':'Alabama','02':'Alaska','04':'Arizona','05':'Arkansas','06':'California',
+    '08':'Colorado','09':'Connecticut','10':'Delaware','11':'District of Columbia','12':'Florida',
+    '13':'Georgia','15':'Hawaii','16':'Idaho','17':'Illinois','18':'Indiana','19':'Iowa',
+    '20':'Kansas','21':'Kentucky','22':'Louisiana','23':'Maine','24':'Maryland',
+    '25':'Massachusetts','26':'Michigan','27':'Minnesota','28':'Mississippi','29':'Missouri',
+    '30':'Montana','31':'Nebraska','32':'Nevada','33':'New Hampshire','34':'New Jersey',
+    '35':'New Mexico','36':'New York','37':'North Carolina','38':'North Dakota','39':'Ohio',
+    '40':'Oklahoma','41':'Oregon','42':'Pennsylvania','44':'Rhode Island','45':'South Carolina',
+    '46':'South Dakota','47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont',
+    '51':'Virginia','53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming'
+  };
+
+  document.getElementById('load-heatmap-btn').addEventListener('click', async () => {
+    setStatus('heatmap-status', 'Loading ratings...', '');
+    const res = await fetch('/api/ratings/by-state');
+    const data = await res.json();
+    if (data.error) { setStatus('heatmap-status', data.error, 'err'); return; }
+    if (!data.rows.length) {
+      setStatus('heatmap-status', 'No ratings yet — submit some ratings first!', 'err');
+      return;
+    }
+    setStatus('heatmap-status', `Loaded ratings for ${data.rows.length} state(s).`, 'ok');
+
+    const ratingMap = {};
+    data.rows.forEach(r => {
+      const name = stateCodeToName[r.state_code];
+      if (name) ratingMap[name] = parseFloat(r.avg_rating);
+    });
+
+    const container = document.getElementById('heatmap-container');
+    container.innerHTML = '';
+
+    const color = val => {
+      if (!val) return '#2a2a2a';
+      if (val < 2) return '#501313';
+      if (val < 3) return '#e24b4a';
+      if (val < 4) return '#ffd43b';
+      if (val < 4.5) return '#97c459';
+      return '#3b6d11';
+    };
+
+    const tooltip = document.createElement('div');
+    tooltip.style.cssText = 'display:none;position:fixed;background:#141414;border:1px solid #2a2a2a;border-radius:4px;padding:6px 10px;font-size:12px;font-family:IBM Plex Mono,monospace;pointer-events:none;z-index:1000;color:#e8e8e8;';
+    document.body.appendChild(tooltip);
+
+    const svg = d3.select(container).append('svg')
+      .attr('viewBox', '0 0 900 560').attr('width', '100%').style('display', 'block');
+
+    d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(us => {
+      const path = d3.geoPath(d3.geoAlbersUsa().scale(1100).translate([450, 280]));
+      svg.selectAll('path')
+        .data(topojson.feature(us, us.objects.states).features)
+        .join('path')
+        .attr('d', path)
+        .attr('stroke', '#2a2a2a')
+        .attr('stroke-width', 0.5)
+        .attr('fill', d => color(ratingMap[d.properties.name]))
+        .on('mousemove', function(event, d) {
+          const name = d.properties.name;
+          const val = ratingMap[name];
+          tooltip.style.display = 'block';
+          tooltip.style.left = (event.clientX + 12) + 'px';
+          tooltip.style.top = (event.clientY - 10) + 'px';
+          tooltip.innerHTML = `${name}<br>${val ? val.toFixed(1) + ' / 5' : 'No ratings yet'}`;
+        })
+        .on('mouseleave', () => { tooltip.style.display = 'none'; });
+    });
+  });
+
+  // ── Ratings Table ─────────────────────────────────────────────────────────
+  document.getElementById('load-ratings-btn').addEventListener('click', async () => {
+    const sc = document.getElementById('rt-state').value.trim().toUpperCase();
+    if (!sc) { setStatus('rt-status', 'Enter a state code.', 'err'); return; }
+    setStatus('rt-status', 'Loading...', '');
+    const res = await fetch(`/api/ratings/counties?state_code=${sc}`);
+    const data = await res.json();
+    if (data.error) { setStatus('rt-status', data.error, 'err'); return; }
+    if (!data.rows.length) { setStatus('rt-status', 'No ratings found for that state.', 'err'); return; }
+    setStatus('rt-status', `${data.rows.length} counties rated in ${sc}.`, 'ok');
+    renderTable('ratings-table', data.rows);
+  });
+
+  // ── Create User ───────────────────────────────────────────────────────────
+  document.getElementById('create-btn').addEventListener('click', async () => {
+    const payload = {
+      first_name: document.getElementById('c-first').value,
+      last_name: document.getElementById('c-last').value,
+      age_group: document.getElementById('c-age').value,
+      race: document.getElementById('c-race').value,
+      hispanic_ethnicity: document.getElementById('c-eth').value,
+      sex: document.getElementById('c-sex').value,
+    };
+    if (!payload.first_name || !payload.last_name) {
+      setStatus('create-status', 'First and last name are required.', 'err'); return;
+    }
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    setStatus('create-status', `Created user #${data.user.user_id}: ${data.user.first_name} ${data.user.last_name}`, 'ok');
+    ['c-first','c-last'].forEach(id => document.getElementById(id).value = '');
+    loadUsers();
+    loadAudit();
+  });
+
+  // ── Load User for Edit ────────────────────────────────────────────────────
+  document.getElementById('load-user-btn').addEventListener('click', async () => {
+    const id = document.getElementById('ud-id').value;
+    if (!id) { setStatus('ud-status', 'Enter a user ID.', 'err'); return; }
+    const res = await fetch(`/api/queries/users`);
+    const data = await res.json();
+    const user = data.rows.find(u => u.user_id == id);
+    if (!user) { setStatus('ud-status', `User #${id} not found in recent users.`, 'err'); document.getElementById('ud-fields').style.display = 'none'; return; }
+    document.getElementById('u-first').value = user.first_name || '';
+    document.getElementById('u-last').value = user.last_name || '';
+    document.getElementById('u-age').value = user.age_group || '';
+    document.getElementById('u-race').value = user.race || '';
+    document.getElementById('u-eth').value = user.hispanic_ethnicity || '';
+    document.getElementById('u-sex').value = user.sex || '';
+    document.getElementById('ud-fields').style.display = 'block';
+    setStatus('ud-status', `Loaded user #${id}.`, 'ok');
+  });
+
+  // ── Update User ───────────────────────────────────────────────────────────
+  document.getElementById('update-btn').addEventListener('click', async () => {
+    const id = document.getElementById('ud-id').value;
+    const payload = {
+      first_name: document.getElementById('u-first').value,
+      last_name: document.getElementById('u-last').value,
+      age_group: document.getElementById('u-age').value,
+      race: document.getElementById('u-race').value,
+      hispanic_ethnicity: document.getElementById('u-eth').value,
+      sex: document.getElementById('u-sex').value,
+    };
+    const res = await fetch(`/api/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    setStatus('ud-status', `Updated user #${id}.`, 'ok');
+    loadUsers();
+  });
+
+  // ── Delete User ───────────────────────────────────────────────────────────
+  document.getElementById('delete-btn').addEventListener('click', async () => {
+    const id = document.getElementById('ud-id').value;
+    if (!confirm(`Delete user #${id}? This cannot be undone.`)) return;
+    const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    setStatus('ud-status', `Deleted user #${id}.`, 'ok');
+    document.getElementById('ud-fields').style.display = 'none';
+    document.getElementById('ud-id').value = '';
+    loadUsers();
+  });
+
+  // ── Users Table ───────────────────────────────────────────────────────────
+  async function loadUsers() {
+    const res = await fetch('/api/queries/users');
+    const data = await res.json();
+    renderTable('users-table', data.rows);
+    setStatus('users-status', `${data.rows.length} row(s).`, 'ok');
+  }
+  document.getElementById('refresh-users-btn').addEventListener('click', loadUsers);
+
+  // ── Audit Log ─────────────────────────────────────────────────────────────
+  async function loadAudit() {
+    const res = await fetch('/api/audit');
+    const data = await res.json();
+    renderTable('audit-table', data.rows);
+    setStatus('audit-status', `${data.rows.length} row(s).`, 'ok');
+  }
+  document.getElementById('refresh-audit-btn').addEventListener('click', loadAudit);
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadUsers();
+  loadAudit();
+</script>
+</body>
+</html>
