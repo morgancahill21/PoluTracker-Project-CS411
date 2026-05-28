@@ -4,27 +4,31 @@ Air Pollution Dashboard with a team of 4 for CS 411 (Database Systems) at UIUC
 # Air Pollution Tracking Dashboard
 
 ## Overview
-This project is a full-stack web application and dashboard designed to track, display, and manage air pollution data. By integrating external air quality APIs with a cloud-hosted relational database, the application provides real-time insights and a platform for user-driven pollution tracking. 
+This project is a full-stack web application and interactive dashboard designed to track and display air pollution data. By integrating external air quality data with a cloud-hosted relational database, the application provides real-time insights, interactive data visualizations, and a platform for crowdsourced, user-reported county ratings.
 
-## Tech
-* **Frontend:** HTML, CSS, JavaScript
+## Tech Stack
+* **Frontend:** HTML, CSS, JavaScript (Chart.js for Data Visualizations)
 * **Backend:** Python, Flask
-* **Database:** SQL, Google Cloud Platform (GCP)
+* **Database:** SQL, Google Cloud Platform (GCP Compute Engine VM)
+* **Networking:** Cloudflare Tunnels (for consistent URL hosting)
 * **Version Control:** GitHub (release tags for versioning)
 
-## Features
-* **Live Data Integration:** Aggregates air quality data pulled from external Air Pollution APIs alongside internal database records.
-* **Full CRUD Functionality:** Users can Create, Read, Update, and Delete pollution data points through the frontend interface.
-* **Advanced Database Automation:** Utilizes SQL stored procedures and triggers (adding a new pollution input automatically updates the recent user input tracking table).
-* **Versioned Releases:** Project milestones and updates are tracked via GitHub release tags with detailed markdown documentation.
+## Key Features
+* **Interactive Visualizations:** Includes interactive heatmaps, bar charts, and pie charts to display complex pollution and mortality data intuitively.
+* **Crowdsourced County Ratings:** Allows users to submit personal air/water quality ratings for specific counties, identifying high-risk areas based on community-driven data.
+* **User Management (CRUD):** Full Create, Read, Update, and Delete functionality for user profiles.
+* **Advanced Database Automation:** * **Triggers:** Automatically tracks new account creations and logs them into a secure `user_audit` table to monitor system access.
+  * **Transactions:** Utilizes `REPEATABLE READ` isolation levels to generate consistent State Reports displaying total monitors and proportional death rates categorized by race.
+  * **Stored Procedures:** Generates comprehensive Pollution Summary Reports, utilizing `UNION ALL` and nested aggregations to combine monitoring station data and mortality statistics efficiently.
 
 ## Database Architecture
-A major focus of this project was designing a highly optimized, scalable database on Google Cloud Platform:
-1. **Design:** Built conceptual and logical database designs with a fully normalized schema to reduce data redundancy.
-2. **Implementation:** Deployed the database instance on GCP.
-3. **Optimization:** Executed advanced queries via the GCP terminal and implemented strategic database indexing to optimize query performance and reduce load times.
+A major focus of this project was designing an optimized, scalable database on Google Cloud Platform:
+1. **Design:** Built conceptual and logical database designs with a fully normalized schema (including resolving a many-to-many relationship between users and locations).
+2. **Implementation:** Deployed the database instance on GCP, integrating custom tables for `county_rating` and `user_audit`.
+3. **Optimization:** Executed advanced queries via the GCP terminal and implemented strategic database indexing on frequently joined columns (like `state_code` and `location_id`) to significantly reduce query latency and compute costs.
 
 ## Setup & Installation
+*(Note: The live application relied on a GCP MySQL instance which is no longer active. The code below demonstrates the core logic and architecture.)*
 To run this project locally:
 
 1. Clone the repository:
