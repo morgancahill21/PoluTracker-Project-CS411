@@ -29,7 +29,7 @@ To run this project locally:
 
 1. Clone the repository:
 
-   git clone [https://github.com/](https://github.com/)[morgancahill21]/[PoluTracker-Project-CS411].git
+   git clone https://github.com/https://github.com/morgancahill21/PoluTracker-Project-CS411.git
 
 2. Navigate to the project directory:
 
