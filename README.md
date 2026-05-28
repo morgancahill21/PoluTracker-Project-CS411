@@ -33,7 +33,7 @@ To run this project locally:
 
 2. Navigate to the project directory:
 
-     cd [PoluTracker-Project-CS411]
+     cd PoluTracker-Project-CS411
 
 3. Install the required Python dependencies:
 
